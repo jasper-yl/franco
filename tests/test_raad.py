@@ -408,3 +408,29 @@ def test_unicode_dots_cannot_hide_a_domain():
     page = "https://example.com/marketplaces"
     for text in ("evil。com", "evil．com/login", "evil｡com", "ｅｖｉｌ.ｃｏｍ"):
         assert "link" in raad_draft_problem("s", text, page, []), text
+
+
+def test_cjk_sentences_without_a_space_are_not_links():
+    """Issue #36: "。" between two sentences made the whole draft a link."""
+    from franco.agents.writer import raad_draft_problem
+    page = "https://example.com/marketplaces"
+    for text in ("我们正在评估迁移。下一步通过邮件确认。",
+                 "移行を評価しています。次の手順を確認します。",
+                 "평가합니다.확인합니다.",
+                 "我们已经评估了 3.5 TB。下周确认。"):
+        assert raad_draft_problem("s", text, page, []) == "", text
+
+
+def test_real_idn_tlds_and_hidden_ascii_labels_are_still_links():
+    from franco.agents.writer import raad_draft_problem
+    page = "https://example.com/marketplaces"
+    for text in ("evil。中国", "evil.中國/login", "看看evil。中国吧", "例子。公司",
+                 "evil。com。下一步", "下一步。evil。com", "迁移。xn--fiqs8s",
+                 "evil.みんな", "평가.한국"):
+        assert "link" in raad_draft_problem("s", text, page, []), text
+
+
+def test_idn_tld_list_is_non_ascii_and_lowercase():
+    from franco.idn_tlds import IDN_TLDS
+    assert {"中国", "公司", "みんな", "한국"} <= IDN_TLDS
+    assert all(not t.isascii() and t == t.lower() and "." not in t for t in IDN_TLDS)

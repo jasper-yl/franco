@@ -19,6 +19,7 @@ import pytz
 
 from franco.brain import Brain
 from franco.config import FrancoConfig
+from franco.idn_tlds import IDN_TLDS
 from franco.integrations.mail_provider import NATIVE_PROVIDERS
 from franco.models.campaign import Campaign, EmailStep
 from franco.outreach import (
@@ -45,6 +46,19 @@ _DOMAIN_RE = re.compile(
     r"(?:[a-z0-9\u00a1-\uffff-]+\.)+(?:[a-z\u00a1-\uffff]{2,24}|xn--[a-z0-9-]+)"
     r"(?:[/:?#][^\s<>\"']*)?", re.IGNORECASE)
 _HTML_RE = re.compile(r"<\s*/?\s*[a-z][^>]*>", re.IGNORECASE)
+_IDN_TLD_PREFIXES = tuple(IDN_TLDS)
+
+
+def _could_be_link(token: str) -> bool:
+    """Whether a _DOMAIN_RE match is something a mail client could link.
+    An ASCII or punycode label after a dot always counts. A non-ASCII one
+    counts only when it starts with a real IDN TLD: Chinese and Japanese
+    put no space after "。", so "迁移。下一步" is two sentences, not a
+    domain, while "evil.中国吧" still is one. Every label is checked, not
+    just the last, so "evil.com.下一步" is still caught."""
+    host = re.split(r"[/:?#]", token, maxsplit=1)[0].lower()
+    return any(label.isascii() or label.startswith(_IDN_TLD_PREFIXES)
+               for label in host.split(".")[1:])
 
 
 def _bare(url: str) -> str:
@@ -85,7 +99,7 @@ def raad_draft_problem(subject: str, body: str, landing_url: str,
     if _IP_RE.search(text):
         return "IP address in draft"
     for m in _DOMAIN_RE.finditer(text):
-        if not allowed(m.group(0)):
+        if _could_be_link(m.group(0)) and not allowed(m.group(0)):
             return f"link not allowed ({m.group(0)[:60]})"
     return ""
 

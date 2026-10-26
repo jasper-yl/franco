@@ -7,6 +7,10 @@ minor versions can still change behaviour.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Raad drafts in Chinese, Japanese or Korean are no longer discarded as containing a link** ([#36](https://github.com/GortexAI/franco/issues/36)). A full stop with no space after it (`迁移。下一步`) was read as a domain, so nearly every such draft was rejected, and rejected again on every retry. A non-ASCII label after a dot now counts as a link only when it starts with a real IDN top-level domain from the IANA root zone (`evil。中国` is still rejected). ASCII and punycode labels are checked exactly as before. `scripts/idn_tlds.py` regenerates the list.
+
 ## [0.5.1] — 2026-10-17
 
 ### Security
